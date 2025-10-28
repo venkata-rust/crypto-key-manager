@@ -113,7 +113,8 @@ fn test_is_valid_word() {
 
 #[test]
 fn test_validate_mnemonic_valid() {
-    let mnemonic = "abandon ability able about above absent absorb abstract absurd abuse access accident";
+    // Official BIP39 test vector with valid SHA256 checksum
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
     assert!(mnemonic::validate_mnemonic(mnemonic).is_ok());
 }
 
@@ -140,6 +141,121 @@ fn test_wordlist_size() {
 
 // PR #1: BIP39 Checksum Validation
 // FAIL_TO_PASS tests will be added here
+// FAIL_TO_PASS: Test entropy to mnemonic conversion with proper checksum
+#[test]
+fn test_entropy_to_mnemonic_with_checksum() {
+    // Test vector from BIP39 spec
+    let entropy = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+    let expected = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let result = mnemonic::entropy_to_mnemonic_checked(&entropy).unwrap();
+    assert_eq!(result, expected);
+}
+
+// FAIL_TO_PASS: Test mnemonic to entropy reverse operation
+#[test]
+fn test_mnemonic_to_entropy() {
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let entropy = mnemonic::mnemonic_to_entropy(mnemonic).unwrap();
+    assert_eq!(entropy.len(), 16); // 128 bits = 16 bytes
+    assert_eq!(entropy, vec![0u8; 16]); // All zeros
+}
+
+// FAIL_TO_PASS: Test roundtrip entropy -> mnemonic -> entropy
+#[test]
+fn test_entropy_mnemonic_roundtrip() {
+    let original_entropy = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                                0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10];
+    
+    let mnemonic = mnemonic::entropy_to_mnemonic_checked(&original_entropy).unwrap();
+    let recovered_entropy = mnemonic::mnemonic_to_entropy(&mnemonic).unwrap();
+    
+    assert_eq!(original_entropy, recovered_entropy);
+}
+
+// FAIL_TO_PASS: Test valid checksum validation
+#[test]
+fn test_validate_checksum_valid() {
+    // Known valid BIP39 mnemonic with correct SHA256 checksum
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    assert!(mnemonic::validate_mnemonic_checksum(mnemonic).is_ok());
+}
+
+// FAIL_TO_PASS: Test invalid checksum detection
+#[test]
+fn test_validate_checksum_invalid() {
+    // Valid words but last word gives invalid checksum
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
+    assert!(mnemonic::validate_mnemonic_checksum(mnemonic).is_err());
+}
+
+// FAIL_TO_PASS: Test another BIP39 test vector
+#[test]
+fn test_bip39_test_vector_2() {
+    // Test vector 2 from BIP39 spec
+    let entropy = vec![0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f,
+                       0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f];
+    let expected = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+    let result = mnemonic::entropy_to_mnemonic_checked(&entropy).unwrap();
+    assert_eq!(result, expected);
+}
+
+// FAIL_TO_PASS: Test 24-word mnemonic with checksum
+#[test]
+fn test_24_word_mnemonic_checksum() {
+    // Test vector for 24 words (256 bits entropy)
+    let entropy = vec![0x00; 32]; // 32 bytes = 256 bits
+    let mnemonic = mnemonic::entropy_to_mnemonic_checked(&entropy).unwrap();
+    
+    // Should be 24 words
+    assert_eq!(mnemonic.split_whitespace().count(), 24);
+    
+    // Should validate correctly
+    assert!(mnemonic::validate_mnemonic_checksum(&mnemonic).is_ok());
+}
+
+// FAIL_TO_PASS: Test generated mnemonics have valid checksums
+#[test]
+fn test_generated_mnemonic_has_valid_checksum() {
+    let mnemonic = mnemonic::generate_mnemonic(12).unwrap();
+    
+    // Should pass checksum validation
+    assert!(mnemonic::validate_mnemonic_checksum(&mnemonic).is_ok());
+}
+
+// FAIL_TO_PASS: Test checksum with different entropy sizes
+#[test]
+fn test_checksum_various_entropy_sizes() {
+    // 12 words (128 bits)
+    let entropy_12 = vec![0xaa; 16];
+    let mnemonic_12 = mnemonic::entropy_to_mnemonic_checked(&entropy_12).unwrap();
+    assert_eq!(mnemonic_12.split_whitespace().count(), 12);
+    assert!(mnemonic::validate_mnemonic_checksum(&mnemonic_12).is_ok());
+    
+    // 15 words (160 bits)
+    let entropy_15 = vec![0xbb; 20];
+    let mnemonic_15 = mnemonic::entropy_to_mnemonic_checked(&entropy_15).unwrap();
+    assert_eq!(mnemonic_15.split_whitespace().count(), 15);
+    assert!(mnemonic::validate_mnemonic_checksum(&mnemonic_15).is_ok());
+    
+    // 24 words (256 bits)
+    let entropy_24 = vec![0xcc; 32];
+    let mnemonic_24 = mnemonic::entropy_to_mnemonic_checked(&entropy_24).unwrap();
+    assert_eq!(mnemonic_24.split_whitespace().count(), 24);
+    assert!(mnemonic::validate_mnemonic_checksum(&mnemonic_24).is_ok());
+}
+
+// FAIL_TO_PASS: Test that modified mnemonic fails checksum
+#[test]
+fn test_modified_mnemonic_fails_checksum() {
+    // Start with valid mnemonic
+    let valid = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    assert!(mnemonic::validate_mnemonic_checksum(valid).is_ok());
+    
+    // Change one word in the middle (not checksum word)
+    let invalid = "abandon abandon ability abandon abandon abandon abandon abandon abandon abandon abandon about";
+    assert!(mnemonic::validate_mnemonic_checksum(invalid).is_err());
+}
 
 // PR #2: Seed Generation
 // FAIL_TO_PASS tests will be added here
