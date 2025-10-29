@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 sha2 = "0.10"
+pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+hmac = "0.12"
 
 [dev-dependencies]
-
+hex = "0.4"

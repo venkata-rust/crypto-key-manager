@@ -1,6 +1,7 @@
 pub mod error;
 pub mod mnemonic;
 pub mod utils;
+pub mod seed;
 
 pub use error::{KeyManagerError, Result};
 
