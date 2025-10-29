@@ -1,6 +1,7 @@
 use crypto_key_manager::{mnemonic, Result};
 use std::env;
 
+
 fn print_usage() {
     println!("Crypto Key Manager - A CLI tool for managing cryptocurrency keys and mnemonics");
     println!("\nUsage:");
@@ -13,7 +14,8 @@ fn print_usage() {
     println!("  crypto-key-manager generate --words 24");
     println!("  crypto-key-manager validate \"abandon ability able about above absent absorb abstract absurd abuse access accident\"");
     println!("\nNote: Current implementation uses basic validation.");
-    println!("      BIP39 checksum validation will be added in a future update.");
+    println!("  seed <mnemonic> [passphrase]      Generate seed from mnemonic");
+    println!("  derive <mnemonic> <path> [pass]   Derive key at BIP32 path (m/44'/0'/0'/0/0)");
 }
 
 fn main() -> Result<()> {
@@ -69,6 +71,48 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
+        // After the existing commands, add these:
+
+"seed" => {
+    if args.len() < 3 {
+        println!("Error: Mnemonic required");
+        return Ok(());
+    }
+    let mnemonic_phrase = &args[2];
+    let passphrase = args.get(3).map(|s| s.as_str()).unwrap_or("");
+    
+    match crypto_key_manager::seed::mnemonic_to_seed(mnemonic_phrase, passphrase) {
+        Ok(seed) => {
+            println!("Seed (hex): {}", hex::encode(seed));
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
+    Ok(())
+}
+
+"derive" => {
+    if args.len() < 4 {
+        println!("Usage: crypto-key-manager derive <mnemonic> <path> [passphrase]");
+        return Ok(());
+    }
+    let mnemonic = &args[2];
+    let path = &args[3];
+    let passphrase = args.get(4).map(|s| s.as_str()).unwrap_or("");
+    
+    match crypto_key_manager::seed::generate_master_key_from_mnemonic(mnemonic, passphrase)
+        .and_then(|master| master.derive_path(path)) 
+    {
+        Ok(key) => println!("xprv: {}", key.to_string()),
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
+        Ok(())
+    }
         "help" | "--help" | "-h" => {
             print_usage();
             Ok(())

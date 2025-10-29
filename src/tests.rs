@@ -4,6 +4,7 @@
 use crate::mnemonic;
 use crate::utils::*;
 use crate::seed;
+use super::*;
 
 // ============================================================================
 // PASS_TO_PASS: Utils Module Tests
@@ -278,7 +279,8 @@ fn test_mnemonic_to_seed_no_passphrase() {
     let expected = hex::decode(expected_hex).unwrap();
     
     assert_eq!(seed.len(), 64); // BIP39 seeds are always 64 bytes
-    assert_eq!(seed, expected);
+    // ✅ FIXED: Compare as slices instead of [u8; 64] vs Vec<u8>
+    assert_eq!(&seed[..], &expected[..]);
 }
 
 // FAIL_TO_PASS: Test mnemonic to seed with passphrase
@@ -293,7 +295,8 @@ fn test_mnemonic_to_seed_with_passphrase() {
     let expected = hex::decode(expected_hex).unwrap();
     
     assert_eq!(seed.len(), 64);
-    assert_eq!(seed, expected);
+    // ✅ FIXED: Compare as slices instead of [u8; 64] vs Vec<u8>
+    assert_eq!(&seed[..], &expected[..]);
 }
 
 // FAIL_TO_PASS: Test seed determinism (same input = same output)
@@ -310,5 +313,58 @@ fn test_seed_determinism() {
     assert_eq!(seed1.len(), 64);
 }
 
-// PR #3: HD Key Derivation
-// FAIL_TO_PASS tests will be added here
+
+// ============================================================================
+// PR #3: BIP32 HD Key Derivation - FAIL_TO_PASS Tests
+// Add these tests to src/tests.rs AFTER PR #2 tests
+// These tests will FAIL until you implement src/hd_key.rs
+// ============================================================================
+
+use crate::hd_key;
+
+// FAIL_TO_PASS: Test master key generation from seed
+#[test]
+fn test_master_key_generation() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        let master = seed::generate_master_key_from_mnemonic(mnemonic, "")
+            .expect("Failed to create master key");
+        
+        // Master key should have depth 0
+        let _xprv = master.to_string();
+        assert!(!_xprv.is_empty());
+    }
+
+// FAIL_TO_PASS: Test child key derivation with path
+#[test]
+fn test_child_key_derivation() {
+    // BIP32 test vector 1
+    let seed = hex::decode("000102030405060708090a0b0c0d0e0f").unwrap();
+    let master_key = hd_key::master_key_from_seed(&seed).unwrap();
+    
+    // Derive key at path m/0'/1/2'/2
+    let derived = master_key.derive_path("m/0'/1/2'/2").unwrap();
+    
+    // Expected derived key from BIP32 test vectors
+    let expected_xprv = "xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334";
+    
+    assert_eq!(derived.to_string(), expected_xprv);
+}
+
+#[test]
+fn test_seed_generation() {
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        let seed1 = seed::mnemonic_to_seed(mnemonic, "")
+            .expect("Failed to generate seed");
+        
+        assert_eq!(seed1.len(), 64);
+        
+        // Same mnemonic + same passphrase = same seed
+        let seed2 = seed::mnemonic_to_seed(mnemonic, "")
+            .expect("Failed to generate seed again");
+        assert_eq!(seed1, seed2);
+        
+        // Different passphrase = different seed
+        let seed3 = seed::mnemonic_to_seed(mnemonic, "different")
+            .expect("Failed to generate seed with passphrase");
+        assert_ne!(seed1, seed3);
+    }
