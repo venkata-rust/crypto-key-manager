@@ -3,6 +3,7 @@
 
 use crate::mnemonic;
 use crate::utils::*;
+use crate::seed;
 
 // ============================================================================
 // PASS_TO_PASS: Utils Module Tests
@@ -259,6 +260,55 @@ fn test_modified_mnemonic_fails_checksum() {
 
 // PR #2: Seed Generation
 // FAIL_TO_PASS tests will be added here
+// ============================================================================
+// PR #2: BIP39 Seed Generation (PBKDF2) - FAIL_TO_PASS Tests
+// Add these tests to src/tests.rs AFTER PR #1 tests
+// These tests will FAIL until you implement src/seed.rs
+// ============================================================================
+
+// FAIL_TO_PASS: Test basic mnemonic to seed conversion (no passphrase)
+#[test]
+fn test_mnemonic_to_seed_no_passphrase() {
+    // BIP39 test vector
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let seed = seed::mnemonic_to_seed(mnemonic, "").unwrap();
+    
+    // Expected seed (64 bytes) from BIP39 test vectors
+    let expected_hex = "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4";
+    let expected = hex::decode(expected_hex).unwrap();
+    
+    assert_eq!(seed.len(), 64); // BIP39 seeds are always 64 bytes
+    assert_eq!(seed, expected);
+}
+
+// FAIL_TO_PASS: Test mnemonic to seed with passphrase
+#[test]
+fn test_mnemonic_to_seed_with_passphrase() {
+    // BIP39 test vector with passphrase "TREZOR"
+    let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let seed = seed::mnemonic_to_seed(mnemonic, "TREZOR").unwrap();
+    
+    // Expected seed with passphrase from BIP39 test vectors
+    let expected_hex = "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04";
+    let expected = hex::decode(expected_hex).unwrap();
+    
+    assert_eq!(seed.len(), 64);
+    assert_eq!(seed, expected);
+}
+
+// FAIL_TO_PASS: Test seed determinism (same input = same output)
+#[test]
+fn test_seed_determinism() {
+    let mnemonic = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+    
+    // Generate seed twice
+    let seed1 = seed::mnemonic_to_seed(mnemonic, "").unwrap();
+    let seed2 = seed::mnemonic_to_seed(mnemonic, "").unwrap();
+    
+    // Should be identical
+    assert_eq!(seed1, seed2);
+    assert_eq!(seed1.len(), 64);
+}
 
 // PR #3: HD Key Derivation
 // FAIL_TO_PASS tests will be added here
