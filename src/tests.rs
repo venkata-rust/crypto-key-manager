@@ -4,7 +4,6 @@
 use crate::mnemonic;
 use crate::utils::*;
 use crate::seed;
-use super::*;
 
 // ============================================================================
 // PASS_TO_PASS: Utils Module Tests
@@ -368,3 +367,18 @@ fn test_seed_generation() {
             .expect("Failed to generate seed with passphrase");
         assert_ne!(seed1, seed3);
     }
+    // PR #4: Additional FAIL_TO_PASS tests will be added here
+
+#[test]
+
+fn test_validate_hex_string_valid() {
+    assert!(validate_hex_string("deadbeef").is_ok());
+    assert!(validate_hex_string("0xdeadbeef").is_ok());
+}
+
+#[test]
+fn test_validate_hex_string_invalid() {
+    assert!(validate_hex_string("xyz").is_err());
+    assert!(validate_hex_string("").is_err());
+    assert!(validate_hex_string("0x123").is_err()); // odd length
+}
